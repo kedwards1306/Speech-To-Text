@@ -1,8 +1,7 @@
 document.addEventListener('DOMContentLoaded', () => {
-    const recognition = new webkitSpeechRecognition() ||
-    new SpeechRecognition();
+    const recognition = new webkitSpeechRecognition() || new SpeechRecognition();
 
-    const languageSelect  = document.getElementById('language');
+    const languageSelect = document.getElementById('language');
     const resultContainer = document.querySelector('.result p.resultText');
     const startListeningBtn = document.querySelector('.btn.record');
     const recordBtnText = document.querySelector('.btn.record p');
@@ -10,30 +9,33 @@ document.addEventListener('DOMContentLoaded', () => {
     const downloadBtn = document.querySelector('.btn.download');
     
     let recognizing = false;
-
-    languages.forEach(language => {
-        const option = document.createElement('option');
-        option.value = language.code;
-        option.text = language.name;
-        languageSelect.add(option);
-
-    });
-
+    let recognizedText = ''; // Variable to store recognized text
+    
     recognition.continuous = true;
     recognition.interimResults = true;
     recognition.lang = languageSelect.value;
     
-    languageSelect.addEventListener('change', () =>  {
+    languageSelect.addEventListener('change', () => {
         recognition.lang = languageSelect.value;
-
     });
+
     startListeningBtn.addEventListener('click', toggleSpeechRecognition);
     clearBtn.addEventListener('click', clearResults);
-
+    
     downloadBtn.disabled = true;
     recognition.onresult = (event) => {
-        const result = event.results[event.results.length - 1][0].transcript;
-        resultContainer.textContent = result;
+        let interimTranscript = '';
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+            if (event.results[i].isFinal) {
+                recognizedText += event.results[i][0].transcript + ' ';
+            } else {
+                interimTranscript += event.results[i][0].transcript;
+            }
+        }
+        // Append only the new portion of interim transcript
+        recognizedText += interimTranscript.substring(recognizedText.length);
+        
+        resultContainer.textContent = recognizedText;
         downloadBtn.disabled = false;   
     };
 
@@ -41,21 +43,20 @@ document.addEventListener('DOMContentLoaded', () => {
         recognizing = false;
         startListeningBtn.classList.remove('recording');
         recordBtnText.textContent = 'Start Listening';
-
     };
 
     downloadBtn.addEventListener('click', downloadResult);
 
-    function toggleSpeechRecognition(){
+    function toggleSpeechRecognition() {
         if (recognizing) {
             recognition.stop();
-        }else {
+        } else {
+            recognizedText = ''; // Reset recognized text
             recognition.start();
         }
 
         recognizing = !recognizing;
         startListeningBtn.classList.toggle('recording', recordBtnText.textContent = 'Stop Listening');
-
     }
 
     function clearResults() {
@@ -63,10 +64,10 @@ document.addEventListener('DOMContentLoaded', () => {
         downloadBtn.disabled = true;
     }
 
-    function downloadResult(){
+    function downloadResult() {
         const resultText = resultContainer.textContent;
 
-        const blob = new Blob([resultText], { type: 'text/plain'});
+        const blob = new Blob([resultText], { type: 'text/plain' });
         const url = URL.createObjectURL(blob);
 
         const a = document.createElement('a');
@@ -74,13 +75,10 @@ document.addEventListener('DOMContentLoaded', () => {
         a.download = 'Your_Text.txt';
         a.style.display = 'none';
 
-
         document.body.appendChild(a);
         a.click();
 
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
-
     }
-
 });
